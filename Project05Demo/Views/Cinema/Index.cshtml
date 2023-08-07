@@ -1,0 +1,239 @@
+﻿@{
+    ViewBag.Title = "Index";
+    Layout = "~/Views/Shared/CinemaLayout.cshtml";
+}
+
+<h2>Index</h2>
+
+@section LATEST_TRAILERS {
+    <div class="latest_movies">
+
+    </div>
+}
+
+@section TOP_RATED {
+    <div class="top_rated">
+
+    </div>
+}
+
+@section MOST_COMMENTED {
+    <div class="most_commented">
+
+    </div>
+}
+
+
+@*modal dùng để hiển thị form Create*@
+<!-- Modal -->
+@section MODEL_DIALOG {
+    <div class="modal fade" id="CreateEditModal" role="dialog">
+        <div class="modal-dialog btn-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title"><label id="title">No Title</label></h4>
+                </div>
+                <div class="modal-body">
+                    <div class="form-horizontal">
+                        <div class="form-group">
+                            <div class="col-md-10">
+                                <input type="hidden" class="form-control" id="Id" />
+                                <label>Movie Names</label>
+                                <input type="text" id="MovieName" class="form-control" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="col-md-10">
+                                @using (Html.BeginForm("Index", "Cinema", null, FormMethod.Post, new { enctype = "multipart/form-data", id = "UploadForm" }))
+                                {
+                                    <label>Image Path</label>
+                                    <input type="file" name="file" class="form-control-file" id="ImagePath" />
+                                    <input type="submit" id="btnsubmit" class="hidden" />
+                                }
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="col-md-10">
+                                <label>Type</label>
+                                <select class="form-control" id="MovieType">
+                                    <option value="LATEST TRAILERS">LATEST TRAILERS</option>
+                                    <option value="TOP RATED">TOP RATED</option>
+                                    <option value="MOST COMMENTED">MOST COMMENTED</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" id="btnClose" class="btn btn-default" data-dismiss="modal">Close</button>
+                    <button type="button" id="btnSave" class="btn btn-primary" data-dismiss="modal">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Script{
+    <script type="text/javascript">
+        var isUpdatable = false;
+        var currentUpdatePath = "";
+        var currentId = 0;
+
+        $(document).ready(function () {
+            showCinemaMovies();
+
+            $("#btnCreateNew").click(function (e) {
+                isUpdatable = false;
+                $("#title").text("Create New");
+            });
+
+            $("#btnClose").click(function (e) {
+                clearModalContent();
+            });
+
+            $("#btnSave").click(function (e) {
+
+                var data = {
+                    Id: $("#Id").val(),
+                    MovieName: $.trim($("#MovieName").val()),
+                    ImagePath: $("#ImagePath").val(),
+                    Type: $("#MovieType").val()
+                }
+
+                if (!isUpdatable) {
+                    if (!data.ImagePath || !data.MovieName) {
+                        alert("You should input MovieName and choose movie poster");
+                        return;
+                    }
+                }
+                else {
+                    if (!data.ImagePath)
+                        data.ImagePath = currentUpdatePath;
+                    data.Id = currentId;
+                }
+
+                alert(data.ImagePath);
+                $("#UploadForm").submit();
+
+                if (!isUpdatable) {
+                    $.ajax({
+                        url: '/Cinema/Create/',
+                        type: 'POST',
+                        dataType: 'json',
+                        data: data,
+                        success: function (data) {
+                            showCinemaMovies();
+                            clearModalContent();
+                        },
+                        error: function (err) {
+                            alert("Error:" + err.responseText);
+                        }
+                    });
+                }
+                else {
+                    $.ajax({
+                        url: '/Cinema/Update/',
+                        type: 'POST',
+                        dataType: 'json',
+                        data: data,
+                        success: function (data) {
+                            showCinemaMovies();
+                            clearModalContent();
+                        },
+                        error: function (err) {
+                            alert("Error:" + err.responseText);
+                        }
+                    });
+                }
+            });
+            function clearModalContent() {
+                $("#MovieName").val(""),
+                    $("#ImagePath").val(""),
+                    $("#MovieType").val("LATEST TRAILERS");
+                isUpdatable = false;
+            }
+        });
+
+        function showCinemaMovies() {
+            $(".latest_movies").empty();
+            $(".top_rated").empty();
+            $(".most_commented").empty();
+
+            $.ajax({
+                url: '/Cinema/ListMovies/',
+                type: 'GET',
+                dataType: 'json',
+                success: function (data) {
+                    $.each(data, function (i, item) {
+                        var id = item.Id;
+                        var moviename = item.MovieName;
+                        var moviepath = item.ImagePath;
+                        var classname = "";
+                        if (item.Type == "LATEST TRAILERS")
+                            classname = ".latest_movies";
+                        if (item.Type == "TOP RATED")
+                            classname = ".top_rated";
+                        if (item.Type == "MOST COMMENTED")
+                            classname = ".most_commented";
+                        AppendNewMovie(id, classname, moviename, moviepath);
+                    });
+                },
+                error: function (err) {
+                    alert("Error:" + err.responseText);
+                }
+            });
+            function AppendNewMovie(id, classname, moviename, moviepath) {
+                var rows = ' ';
+                rows += "<div class='movie'>";
+                rows += "<div class='movie-image'>";
+                rows += "<a href='#'><span class='play'><span class='name'>" + moviename + "</span></span>";
+                rows += "<img src=\"/Assets/" + moviepath + "\" alt='movie' /></a>";
+                rows += "</div>";
+                rows += "<button type = 'button' id = 'btnEdit' class = 'btn btn-primary btn-xs' data-toggle ='modal' data-target='#CreateEditModal' onclick='return getDetailMovie(" + id + ")'> Edit </button>";
+                rows += "<button type = 'button' id = 'btnDelete' class = 'btn btn-danger btn-xs' onclick='return deleteMovie(" + id + ")'> Delete </button>";
+                rows += "</div>";
+                $(classname).append(rows);
+            }
+        }
+
+        function deleteMovie(id) {
+            var confirmDelete = confirm("Do you want to delete movie ?");
+            $.ajax({
+                url: '/Cinema/Delete/' + id,
+                type: 'POST',
+                dataType: 'json',
+                success: function (data) {
+                    showCinemaMovies();
+                },
+                error: function (err) {
+                    alert("Error:" + err.responseText);
+                }
+            });
+        }
+
+        function getDetailMovie(id) {
+            isUpdatable = true;
+            currentUpdatePath = "";
+            currentId = 0;
+            $("#title").text("Edit");
+
+            $.ajax({
+                url: '/Cinema/Get/' + id,
+                type: 'GET',
+                dataType: 'json',
+                success: function (data) {
+                    $("#MovieName").val(data.MovieName);
+                    $("#MovieType").val(data.Type.trim());
+                    currentUpdatePath = data.ImagePath;
+                    currentId = data.Id;
+                },
+                error: function (err) {
+                    alert("Error:" + err.responseText);
+                }
+            });
+        }
+    </script>
+}
+
+
